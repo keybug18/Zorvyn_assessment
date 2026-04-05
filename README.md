@@ -146,7 +146,7 @@ Stored under localStorage key `finio_v2`. Clearing browser storage resets to see
 ## File Structure
 
 ```
-Zorvyn_assessment
+Zorvyn_test
 ├── index.html
 ├── style.css
 ├── script.js   
