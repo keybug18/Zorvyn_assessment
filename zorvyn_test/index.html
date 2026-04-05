@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finio — Finance Dashboard</title>
+
+  <!-- FONTS -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Styles -->
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="layout">
+
+  <!--  SIDEBAR  -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">Fin<span class="logo-dot">io</span></div>
+      <button class="theme-toggle" id="themeToggle" title="Toggle light/dark" aria-label="Toggle theme">
+        <div class="theme-toggle-knob"></div>
+        <div class="theme-icons"><span>🌙</span><span>☀️</span></div>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-label">Menu</div>
+      <div class="nav-item active" data-section="overview">
+        <span class="nav-icon">◈</span> Overview <span class="nav-pip"></span>
+      </div>
+      <div class="nav-item" data-section="transactions">
+        <span class="nav-icon">⇄</span> Transactions <span class="nav-pip"></span>
+      </div>
+      <div class="nav-item" data-section="insights">
+        <span class="nav-icon">◎</span> Insights <span class="nav-pip"></span>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="role-switcher">
+        <div class="role-label">Current Role</div>
+        <select class="role-select" id="roleSelect">
+          <option value="admin">Admin</option>
+          <option value="viewer">Viewer</option>
+        </select>
+        <div class="role-badge admin" id="roleBadge">
+          <span class="role-dot"></span> ADMIN
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="overlay-bg" id="overlayBg"></div>
+
+  <!--  MAIN -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" id="menuBtn">☰</button>
+        <div>
+          <div class="topbar-title" id="sectionTitle">Overview</div>
+          <div class="topbar-subtitle" id="sectionSubtitle">Your financial summary</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-date" id="topbarDate"></div>
+        <button class="btn btn-ghost" onclick="exportCSV()" style="font-size:12px;padding:7px 13px">↓ Export</button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!--  OVERVIEW  -->
+      <section class="section active" id="section-overview">
+        <div class="section-header">
+          <div>
+            <div class="section-title" id="greetingText">Good morning 👋</div>
+            <div class="section-subtitle">Here's what's happening with your finances</div>
+          </div>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="grid-4" id="statsGrid"></div>
+
+        <!-- Charts row -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Balance Trend</div>
+              <span class="card-badge">6 MONTHS</span>
+            </div>
+            <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Spending Breakdown</div>
+              <span class="card-badge">ALL TIME</span>
+            </div>
+            <div class="chart-wrap"><canvas id="donutChart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Bar chart -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Monthly Income vs Expenses</div>
+            <span class="card-badge">2024–25</span>
+          </div>
+          <div class="chart-wrap" style="height:180px"><canvas id="barChart"></canvas></div>
+        </div>
+      </section>
+
+      <!--  TRANSACTIONS  -->
+      <section class="section" id="section-transactions">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Transactions</div>
+            <div class="section-subtitle">All your financial activity</div>
+          </div>
+          <button class="btn btn-primary admin-only" id="addTxBtn" onclick="openAddModal()">＋ Add Transaction</button>
+        </div>
+
+        <div class="card">
+          <!-- Filters -->
+          <div class="filter-bar">
+            <div class="search-wrap">
+              <span class="search-icon">⌕</span>
+              <input class="search-input" id="searchInput" placeholder="Search transactions…" oninput="debounceRender()" />
+            </div>
+            <select class="filter-select" id="typeFilter" onchange="renderTransactions()">
+              <option value="">All Types</option>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+            <select class="filter-select" id="catFilter" onchange="renderTransactions()"></select>
+            <select class="filter-select" id="sortFilter" onchange="renderTransactions()">
+              <option value="date-desc">Newest First</option>
+              <option value="date-asc">Oldest First</option>
+              <option value="amount-desc">Highest Amount</option>
+              <option value="amount-asc">Lowest Amount</option>
+            </select>
+          </div>
+
+          <!-- Table -->
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th onclick="setSort('date')" id="th-date">Date <span class="sort-icon">↕</span></th>
+                  <th>Description</th>
+                  <th onclick="setSort('cat')" id="th-cat">Category <span class="sort-icon">↕</span></th>
+                  <th>Type</th>
+                  <th onclick="setSort('amount')" id="th-amount">Amount <span class="sort-icon">↕</span></th>
+                  <th class="admin-only" style="width:90px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="txTableBody"></tbody>
+            </table>
+
+            <div id="txEmpty" class="empty-state" style="display:none">
+              <span class="empty-icon">◌</span>
+              <div class="empty-title">No transactions found</div>
+              <div class="empty-sub">Try adjusting your search or filters</div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination">
+            <div class="page-info" id="pageInfo"></div>
+            <div class="page-btns" id="pageBtns"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INSIGHTS -->
+      <section class="section" id="section-insights">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Insights</div>
+            <div class="section-subtitle">Understand your spending patterns</div>
+          </div>
+        </div>
+
+        <div class="grid-3" id="insightsGrid"></div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Category Breakdown</div></div>
+            <div id="categoryBreakdown"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Monthly Comparison</div></div>
+            <div id="monthlyComparison"></div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- MODAL-->
+<div class="modal-overlay" id="txModal">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Add Transaction</div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <input class="form-input" id="txDesc" placeholder="e.g. Grocery run at DMart" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Amount (₹)</label>
+        <input class="form-input" id="txAmount" type="number" placeholder="0" min="0" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="txDate" type="date" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="txType">
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-select" id="txCat">
+          <option>Food</option>
+          <option>Transport</option>
+          <option>Shopping</option>
+          <option>Entertainment</option>
+          <option>Health</option>
+          <option>Bills</option>
+          <option>Salary</option>
+          <option>Investment</option>
+          <option>Freelance</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTransaction()">Save Transaction</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Script -->
+<script src="script.js"></script>
+</body>
+</html>
